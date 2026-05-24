@@ -265,7 +265,8 @@ function TimelineHeader({viewport}: {viewport: TimelineViewport}) {
 						{months.map((m, i) => (
 							<div
 								key={i}
-								className="h-7 flex items-center border-l border-gray-200 px-2 font-medium text-left whitespace-nowrap overflow-hidden"
+								className="flex items-center border-l border-gray-200 px-2 font-medium text-left whitespace-nowrap overflow-hidden"
+								style={{height: HEADER_MONTHS_HEIGHT}}
 							>
 								<span className="truncate">{m.label}</span>
 							</div>
@@ -423,9 +424,9 @@ export function TimelineBoard({
 		shouldIgnoreTarget: target =>
 			Boolean(
 				target.closest('button') ||
-					target.closest('a') ||
-					target.closest('input') ||
-					target.closest('.cursor-pointer'),
+				target.closest('a') ||
+				target.closest('input') ||
+				target.closest('.cursor-pointer'),
 			),
 	})
 
@@ -471,7 +472,7 @@ export function TimelineBoard({
 						<div className="flex-1 relative flex">
 							{/* Left list - sticky to left */}
 							<div
-								className="sticky left-0 w-64 shrink-0 border-r border-gray-200 bg-white z-20"
+								className="sticky left-0 shrink-0 border-r border-gray-200 bg-white z-20"
 								style={{width: SIDEBAR_WIDTH}}
 								role="list"
 								aria-label="Task list"
@@ -517,7 +518,10 @@ export function TimelineBoard({
 				<DragOL>
 					{activeRow && (
 						<div className="pointer-events-none">
-							<div className="h-10 flex items-center px-2 rounded bg-white shadow-sm border">
+							<div
+								className="flex items-center px-2 rounded bg-white shadow-sm border"
+								style={{height: ROW_HEIGHT}}
+							>
 								<span className="text-sm">{activeRow.title}</span>
 							</div>
 						</div>
