@@ -171,7 +171,6 @@ const TimelineHeader = React.forwardRef<
 >(({ viewport }, ref) => {
   const pxPerDay = viewport.pxPerDay ?? 16
   const daysTotal = Math.max(1, differenceInCalendarDays(viewport.end, viewport.start) + 1)
-  const totalPx = daysTotal * pxPerDay
 
   // Months across full viewport
   const months: Array<{ label: string; span: number }> = []
@@ -420,7 +419,7 @@ export function TimelineBoard({
                 <BarsLayer
                   tasks={tasks}
                   viewport={viewport}
-                  onBarDoubleClick={(taskId, barLeftPx) => {
+                  onBarDoubleClick={(_taskId, barLeftPx) => {
                     const scroller = scrollerRef.current
                     if (!scroller) return
                     // Center the bar in the viewport horizontally
