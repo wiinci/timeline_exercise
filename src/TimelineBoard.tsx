@@ -16,16 +16,20 @@ import {
 	useSortable,
 } from '@dnd-kit/sortable'
 import {CSS} from '@dnd-kit/utilities'
-import {
-	addDays,
-	differenceInCalendarDays,
-	format,
-	isAfter,
-	isBefore,
-	isValid,
-} from 'date-fns'
+import {addDays, differenceInCalendarDays, format, isAfter} from 'date-fns'
 import {ChevronLeft, Plus} from 'lucide-react'
 import React, {useEffect, useMemo, useRef, useState} from 'react'
+import {
+	BAR_VERTICAL_PADDING,
+	HEADER_DAYS_HEIGHT,
+	HEADER_MONTHS_HEIGHT,
+	ROW_HEIGHT,
+	SIDEBAR_WIDTH,
+	getTaskGeometry,
+	getTaskScrollTarget,
+	getTodayMarker,
+	getViewportDays,
+} from './timelineMath'
 
 // dnd-kit JSX typing workaround for React 19
 const SortableCtx = SortableContextBase as unknown as React.FC<any>
@@ -52,18 +56,6 @@ export interface TimelineBoardProps {
 	onRowDoubleClick?: (taskId: string) => void
 }
 
-function clampDate(d: Date, start: Date, end: Date) {
-	if (isBefore(d, start)) return start
-	if (isAfter(d, end)) return end
-	return d
-}
-
-/** Layout constants */
-const ROW_HEIGHT = 40
-const HEADER_HEIGHT = 52
-const SIDEBAR_WIDTH = 256
-const BAR_VERTICAL_PADDING = 6
-
 function Row({
 	task,
 	onDoubleClick,
@@ -80,6 +72,7 @@ function Row({
 	const style: React.CSSProperties = {
 		transform,
 		transition: sortable.transition,
+		height: ROW_HEIGHT,
 	}
 
 	const handleDoubleClick = (e: React.MouseEvent) => {
@@ -92,7 +85,7 @@ function Row({
 			ref={sortable.setNodeRef}
 			style={style}
 			{...sortable.attributes}
-			className="relative h-10"
+			className="relative"
 			role="listitem"
 		>
 			<div
@@ -115,26 +108,12 @@ function BarsLayer({
 }: {
 	tasks: TimelineTask[]
 	viewport: TimelineViewport
-	onBarDoubleClick?: (taskId: string, barLeftPx: number) => void
+	onBarDoubleClick?: (taskId: string) => void
 }) {
-	const days = Math.max(
-		1,
-		differenceInCalendarDays(viewport.end, viewport.start) + 1,
-	)
+	const days = getViewportDays(viewport)
 	const pxPerDay = viewport.pxPerDay ?? 16
 	const totalPx = days * pxPerDay
-
-	// Today marker position (clamped within viewport)
-	const today = new Date()
-	const clampedToday = clampDate(today, viewport.start, viewport.end)
-	const isTodayInOuter =
-		isValid(clampedToday as Date) &&
-		!(isBefore(today, viewport.start) || isAfter(today, viewport.end))
-	const todayIndex = Math.max(
-		0,
-		Math.min(days - 1, differenceInCalendarDays(clampedToday, viewport.start)),
-	)
-	const todayX = todayIndex * pxPerDay + Math.floor(pxPerDay / 2)
+	const {isTodayInView, todayX} = getTodayMarker(viewport, pxPerDay)
 
 	return (
 		<div
@@ -149,7 +128,7 @@ function BarsLayer({
 			}}
 		>
 			{/* today marker */}
-			{isTodayInOuter && (
+			{isTodayInView && (
 				<div
 					className="absolute top-0 bottom-0 w-px bg-blue-600"
 					style={{left: todayX, zIndex: 0}}
@@ -159,43 +138,30 @@ function BarsLayer({
 			{/* bars */}
 			<div>
 				{tasks.map((t, rowIndex) => {
-					if (!t.start || !t.end || !isValid(t.start) || !isValid(t.end))
-						return null
-					if (isBefore(t.end, viewport.start) || isAfter(t.start, viewport.end))
-						return null
-
-					const start = clampDate(t.start, viewport.start, viewport.end)
-					const end = clampDate(t.end, viewport.start, viewport.end)
-					const startOffset =
-						Math.max(0, differenceInCalendarDays(start, viewport.start)) *
-						pxPerDay
-					const daySpan = differenceInCalendarDays(end, start)
-					const isSingleDay = daySpan === 0
-					const width = Math.max(1, daySpan + 1) * pxPerDay
+					const geometry = getTaskGeometry(t, viewport, pxPerDay)
+					if (!geometry) return null
 
 					// For single-day events, show as a point-in-time marker with diamond
-					if (isSingleDay) {
+					if (geometry.isSingleDay) {
 						return (
 							<div
 								key={String(t.id)}
 								className="absolute"
 								style={{
 									top: rowIndex * ROW_HEIGHT + BAR_VERTICAL_PADDING,
-									left: startOffset,
+									left: geometry.left,
 								}}
 							>
 								<div
 									className="max-w-96 pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 inline-flex justify-start items-center gap-1.5 overflow-hidden cursor-pointer"
-									onDoubleClick={() =>
-										onBarDoubleClick?.(String(t.id), startOffset)
-									}
+									onDoubleClick={() => onBarDoubleClick?.(String(t.id))}
 								>
 									<div className="flex-1 pl-0.5 pr-1 py-0.5 rounded-md flex justify-start items-center gap-1.5">
 										<div className="flex justify-start items-center gap-1">
 											{/* Diamond marker to indicate point in time */}
 											<div className="w-2 h-2 bg-gray-600 rotate-45 flex-shrink-0" />
 											<span className="text-sm font-semibold text-gray-700">
-												{format(t.start, 'MMM d')}
+												{format(geometry.start, 'MMM d')}
 											</span>
 											<span className="w-px h-3 bg-gray-300" />
 											<div className="justify-start text-gray-800 text-sm leading-tight">
@@ -214,15 +180,13 @@ function BarsLayer({
 							className="absolute"
 							style={{
 								top: rowIndex * ROW_HEIGHT + BAR_VERTICAL_PADDING,
-								left: startOffset,
-								width,
+								left: geometry.left,
+								width: geometry.width,
 							}}
 						>
 							<div
 								className="w-full pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 flex justify-start items-center gap-1.5 overflow-hidden cursor-pointer"
-								onDoubleClick={() =>
-									onBarDoubleClick?.(String(t.id), startOffset)
-								}
+								onDoubleClick={() => onBarDoubleClick?.(String(t.id))}
 							>
 								<div className="flex-1 pl-0.5 pr-1 py-0.5 rounded-md flex justify-start items-center gap-1.5 min-w-0">
 									<div className="text-gray-800 text-sm leading-tight truncate">
@@ -238,17 +202,9 @@ function BarsLayer({
 	)
 }
 
-const TimelineHeader = React.forwardRef<
-	HTMLDivElement,
-	{
-		viewport: TimelineViewport
-	}
->(({viewport}, ref) => {
+function TimelineHeader({viewport}: {viewport: TimelineViewport}) {
 	const pxPerDay = viewport.pxPerDay ?? 16
-	const daysTotal = Math.max(
-		1,
-		differenceInCalendarDays(viewport.end, viewport.start) + 1,
-	)
+	const daysTotal = getViewportDays(viewport)
 
 	// Months across full viewport
 	const months: Array<{label: string; span: number}> = []
@@ -261,29 +217,22 @@ const TimelineHeader = React.forwardRef<
 		cursor = addDays(to, 1)
 	}
 
-	// Today marker position
-	const today = new Date()
-	const clampedToday = clampDate(today, viewport.start, viewport.end)
-	const isTodayInOuter =
-		isValid(clampedToday as Date) &&
-		!(isBefore(today, viewport.start) || isAfter(today, viewport.end))
-	const todayIndex = Math.max(
-		0,
-		Math.min(
-			daysTotal - 1,
-			differenceInCalendarDays(clampedToday, viewport.start),
-		),
+	const {clampedToday, isTodayInView, todayX} = getTodayMarker(
+		viewport,
+		pxPerDay,
 	)
-	const todayX = todayIndex * pxPerDay + Math.floor(pxPerDay / 2)
 
 	return (
-		<div
-			ref={ref}
-			className="sticky top-0 z-20 bg-white border-b border-gray-200 select-none"
-		>
+		<div className="sticky top-0 z-20 bg-white border-b border-gray-200 select-none">
 			{/* Months row */}
-			<div className="h-7 flex items-center text-xs text-gray-700">
-				<div className="w-64 shrink-0 px-2 flex items-center justify-between sticky left-0 bg-white z-30 border-r border-gray-200 h-full">
+			<div
+				className="flex items-center text-xs text-gray-700"
+				style={{height: HEADER_MONTHS_HEIGHT}}
+			>
+				<div
+					className="shrink-0 px-2 flex items-center justify-between sticky left-0 bg-white z-30 border-r border-gray-200"
+					style={{width: SIDEBAR_WIDTH, height: HEADER_MONTHS_HEIGHT}}
+				>
 					<button
 						aria-label="Add task"
 						className="p-1 hover:bg-gray-100 rounded transition-colors"
@@ -321,7 +270,7 @@ const TimelineHeader = React.forwardRef<
 							</div>
 						))}
 					</div>
-					{isTodayInOuter && (
+					{isTodayInView && (
 						<div
 							className="absolute top-0 bottom-0 w-px bg-blue-600"
 							style={{left: todayX}}
@@ -330,11 +279,17 @@ const TimelineHeader = React.forwardRef<
 				</div>
 			</div>
 			{/* Days row */}
-			<div className="h-6 flex items-center text-[11px] text-gray-500 border-t border-gray-100">
-				<div className="w-64 shrink-0 px-2 sticky left-0 bg-white z-30 border-r border-gray-200 h-full" />
+			<div
+				className="flex items-center text-[11px] text-gray-500 border-t border-gray-100"
+				style={{height: HEADER_DAYS_HEIGHT}}
+			>
+				<div
+					className="shrink-0 px-2 sticky left-0 bg-white z-30 border-r border-gray-200"
+					style={{width: SIDEBAR_WIDTH, height: HEADER_DAYS_HEIGHT}}
+				/>
 				<div
 					className="relative"
-					style={{width: daysTotal * pxPerDay}}
+					style={{width: daysTotal * pxPerDay, height: HEADER_DAYS_HEIGHT}}
 				>
 					<div
 						className="absolute inset-0 pointer-events-none"
@@ -345,15 +300,23 @@ const TimelineHeader = React.forwardRef<
               `,
 						}}
 					/>
-					<div className="relative h-6">
+					<div
+						className="relative"
+						style={{height: HEADER_DAYS_HEIGHT}}
+					>
 						{Array.from({length: Math.ceil(daysTotal / 7)}).map(
 							(_, weekIndex) => {
 								const dayIndex = weekIndex * 7
+								const weekSpan = Math.min(7, daysTotal - dayIndex)
 								return (
 									<div
 										key={weekIndex}
-										className="absolute top-0 h-6 flex items-center justify-center border-l border-transparent px-1"
-										style={{left: dayIndex * pxPerDay, width: 7 * pxPerDay}}
+										className="absolute top-0 flex items-center justify-center border-l border-transparent px-1"
+										style={{
+											left: dayIndex * pxPerDay,
+											width: weekSpan * pxPerDay,
+											height: HEADER_DAYS_HEIGHT,
+										}}
 									>
 										<span className="truncate">
 											{format(addDays(viewport.start, dayIndex), 'd')}
@@ -363,13 +326,13 @@ const TimelineHeader = React.forwardRef<
 							},
 						)}
 					</div>
-					{isTodayInOuter && (
+					{isTodayInView && (
 						<div
 							className="absolute top-0 bottom-0 w-px bg-blue-600"
 							style={{left: todayX}}
 						/>
 					)}
-					{isTodayInOuter && (
+					{isTodayInView && (
 						<>
 							<div
 								className="absolute -translate-x-1/2 -translate-y-1/2"
@@ -395,7 +358,7 @@ const TimelineHeader = React.forwardRef<
 			</div>
 		</div>
 	)
-})
+}
 
 export function TimelineBoard({
 	tasks,
@@ -451,14 +414,10 @@ export function TimelineBoard({
 	}
 
 	// Derive viewport pixel width for bars layer and header
-	const days = Math.max(
-		1,
-		differenceInCalendarDays(viewport.end, viewport.start) + 1,
-	)
+	const days = getViewportDays(viewport)
 	const pxPerDay = viewport.pxPerDay ?? 16
 	const totalPx = days * pxPerDay
 
-	// Handler to scroll to a task's bar
 	const scrollToTask = (taskId: string) => {
 		const task = tasks.find(t => String(t.id) === taskId)
 		if (!task) return
@@ -466,24 +425,18 @@ export function TimelineBoard({
 		const scroller = scrollerRef.current
 		if (!scroller) return
 
-		const start =
-			task.start && isValid(task.start)
-				? clampDate(task.start, viewport.start, viewport.end)
-				: null
-		if (!start) return
+		const geometry = getTaskGeometry(task, viewport, pxPerDay)
+		if (!geometry || rowIndex === -1) return
 
-		const startOffset =
-			Math.max(0, differenceInCalendarDays(start, viewport.start)) * pxPerDay
-		const targetScrollLeft =
-			startOffset - (scroller.clientWidth - SIDEBAR_WIDTH) / 2
-		const targetScrollTop =
-			HEADER_HEIGHT +
-			rowIndex * ROW_HEIGHT -
-			scroller.clientHeight / 2 +
-			ROW_HEIGHT / 2
+		const target = getTaskScrollTarget({
+			rowIndex,
+			geometry,
+			scrollerWidth: scroller.clientWidth,
+			scrollerHeight: scroller.clientHeight,
+		})
 		scroller.scrollTo({
-			left: targetScrollLeft,
-			top: targetScrollTop,
+			left: target.left,
+			top: target.top,
 			behavior: 'smooth',
 		})
 	}
@@ -508,6 +461,7 @@ export function TimelineBoard({
 							{/* Left list - sticky to left */}
 							<div
 								className="sticky left-0 w-64 shrink-0 border-r border-gray-200 bg-white z-20"
+								style={{width: SIDEBAR_WIDTH}}
 								role="list"
 								aria-label="Task list"
 							>
@@ -581,27 +535,7 @@ export function TimelineBoard({
 								<BarsLayer
 									tasks={tasks}
 									viewport={viewport}
-									onBarDoubleClick={(taskId, barLeftPx) => {
-										const scroller = scrollerRef.current
-										if (!scroller) return
-										const rowIndex = tasks.findIndex(
-											t => String(t.id) === taskId,
-										)
-										if (rowIndex === -1) return
-										// Center the bar in the viewport horizontally and vertically
-										const targetScrollLeft =
-											barLeftPx - (scroller.clientWidth - SIDEBAR_WIDTH) / 2
-										const targetScrollTop =
-											HEADER_HEIGHT +
-											rowIndex * ROW_HEIGHT -
-											scroller.clientHeight / 2 +
-											ROW_HEIGHT / 2
-										scroller.scrollTo({
-											left: targetScrollLeft,
-											top: targetScrollTop,
-											behavior: 'smooth',
-										})
-									}}
+									onBarDoubleClick={scrollToTask}
 								/>
 							</div>
 						</div>
