@@ -48,6 +48,12 @@ function clampDate(d: Date, start: Date, end: Date) {
   return d
 }
 
+/** Layout constants */
+const ROW_HEIGHT = 40
+const HEADER_HEIGHT = 52
+const SIDEBAR_WIDTH = 256
+const BAR_VERTICAL_PADDING = 6
+
 function Row({ task, onDoubleClick }: { task: TimelineTask; onDoubleClick?: () => void }) {
   const sortable = useSortable({ id: task.id, data: { type: 'Row', task }, attributes: { roleDescription: 'Row' } })
   const transform = CSS.Transform.toString(sortable.transform)
@@ -125,7 +131,7 @@ function BarsLayer({
           // For single-day events, show as a point-in-time marker with diamond
           if (isSingleDay) {
             return (
-              <div key={String(t.id)} className="absolute" style={{ top: rowIndex * 40 + 6, left: startOffset }}>
+              <div key={String(t.id)} className="absolute" style={{ top: rowIndex * ROW_HEIGHT + BAR_VERTICAL_PADDING, left: startOffset }}>
                 <div
                   className="max-w-96 pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 inline-flex justify-start items-center gap-1.5 overflow-hidden cursor-pointer"
                   onDoubleClick={() => onBarDoubleClick?.(String(t.id), startOffset)}
@@ -147,7 +153,7 @@ function BarsLayer({
           }
 
           return (
-            <div key={String(t.id)} className="absolute" style={{ top: rowIndex * 40 + 6, left: startOffset, width }}>
+            <div key={String(t.id)} className="absolute" style={{ top: rowIndex * ROW_HEIGHT + BAR_VERTICAL_PADDING, left: startOffset, width }}>
               <div
                 className="w-full pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 flex justify-start items-center gap-1.5 overflow-hidden cursor-pointer"
                 onDoubleClick={() => onBarDoubleClick?.(String(t.id), startOffset)}
@@ -333,8 +339,8 @@ export function TimelineBoard({
     if (!start) return
 
     const startOffset = Math.max(0, differenceInCalendarDays(start, viewport.start)) * pxPerDay
-    const targetScrollLeft = startOffset - (scroller.clientWidth - 256) / 2
-    const targetScrollTop = 52 + rowIndex * 40 - scroller.clientHeight / 2 + 20
+    const targetScrollLeft = startOffset - (scroller.clientWidth - SIDEBAR_WIDTH) / 2
+    const targetScrollTop = HEADER_HEIGHT + rowIndex * ROW_HEIGHT - scroller.clientHeight / 2 + ROW_HEIGHT / 2
     scroller.scrollTo({ left: targetScrollLeft, top: targetScrollTop, behavior: 'smooth' })
   }
 
@@ -346,7 +352,7 @@ export function TimelineBoard({
           ref={scrollerRef}
         >
           <div
-            style={{ width: totalPx + 256, minHeight: '100%' }}
+            style={{ width: totalPx + SIDEBAR_WIDTH, minHeight: '100%' }}
             className="flex flex-col relative"
           >
             <TimelineHeader
@@ -357,7 +363,7 @@ export function TimelineBoard({
               {/* Left list - sticky to left */}
               <div
                 className="sticky left-0 w-64 shrink-0 border-r border-gray-200 bg-white z-10"
-                style={{ height: tasks.length * 40 }}
+                style={{ height: tasks.length * ROW_HEIGHT }}
               >
                 <SortableCtx items={tasksIds}>
                   {tasks.map((t) => (
@@ -376,7 +382,7 @@ export function TimelineBoard({
               {/* Right timeline grid */}
               <div
                 className="relative cursor-grab flex-1"
-                style={{ width: totalPx, height: Math.max(tasks.length * 40, viewportH) }}
+                style={{ width: totalPx, height: Math.max(tasks.length * ROW_HEIGHT, viewportH) }}
                 onPointerDown={(e) => {
                   // Begin horizontal panning on left mouse or touch
                   if (e.button !== 0 && e.pointerType !== 'touch') return
@@ -428,8 +434,8 @@ export function TimelineBoard({
                     const rowIndex = tasks.findIndex((t) => String(t.id) === taskId)
                     if (rowIndex === -1) return
                     // Center the bar in the viewport horizontally and vertically
-                    const targetScrollLeft = barLeftPx - (scroller.clientWidth - 256) / 2
-                    const targetScrollTop = 52 + rowIndex * 40 - scroller.clientHeight / 2 + 20
+                    const targetScrollLeft = barLeftPx - (scroller.clientWidth - SIDEBAR_WIDTH) / 2
+                    const targetScrollTop = HEADER_HEIGHT + rowIndex * ROW_HEIGHT - scroller.clientHeight / 2 + ROW_HEIGHT / 2
                     scroller.scrollTo({ left: targetScrollLeft, top: targetScrollTop, behavior: 'smooth' })
                   }}
                 />
