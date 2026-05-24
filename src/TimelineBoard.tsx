@@ -111,9 +111,11 @@ function BarsLayer({
       {/* bars */}
       <div>
         {tasks.map((t, rowIndex) => {
-          const start = t.start && isValid(t.start) ? clampDate(t.start, viewport.start, viewport.end) : null
-          const end = t.end && isValid(t.end) ? clampDate(t.end, viewport.start, viewport.end) : null
-          if (!start || !end) return null
+          if (!t.start || !t.end || !isValid(t.start) || !isValid(t.end)) return null
+          if (isBefore(t.end, viewport.start) || isAfter(t.start, viewport.end)) return null
+
+          const start = clampDate(t.start, viewport.start, viewport.end)
+          const end = clampDate(t.end, viewport.start, viewport.end)
           const startOffset = Math.max(0, differenceInCalendarDays(start, viewport.start)) * pxPerDay
           const daySpan = differenceInCalendarDays(end, start)
           const isSingleDay = daySpan === 0
@@ -131,7 +133,7 @@ function BarsLayer({
                     <div className="flex justify-start items-center gap-1">
                       {/* Diamond marker to indicate point in time */}
                       <div className="w-2 h-2 bg-gray-600 rotate-45 flex-shrink-0" />
-                      <span className="text-sm font-semibold text-gray-700">{format(start, 'MMM d')}</span>
+                      <span className="text-sm font-semibold text-gray-700">{format(t.start, 'MMM d')}</span>
                       <span className="w-px h-3 bg-gray-300" />
                       <div className="justify-start text-gray-800 text-sm leading-tight">
                         {t.title || 'Untitled'}
