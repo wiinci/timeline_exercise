@@ -93,16 +93,17 @@ function BarsLayer({
   const todayX = todayIndex * pxPerDay + Math.floor(pxPerDay / 2)
 
   return (
-    <div className="relative" style={{ width: totalPx, height: '100%' }}>
-      {/* vertical day grid - full width, no windowing */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="h-full grid" style={{ gridTemplateColumns: `repeat(${days}, ${pxPerDay}px)` }}>
-          {Array.from({ length: days }).map((_, i) => (
-            <div key={i} className={i % 7 === 0 ? 'border-l border-gray-300' : 'border-l border-gray-100'} />
-          ))}
-        </div>
-      </div>
-
+    <div
+      className="relative"
+      style={{
+        width: totalPx,
+        height: '100%',
+        backgroundImage: `
+          repeating-linear-gradient(90deg, #d1d5db 0px, #d1d5db 1px, transparent 1px, transparent ${7 * pxPerDay}px),
+          repeating-linear-gradient(90deg, #f3f4f6 0px, #f3f4f6 1px, transparent 1px, transparent ${pxPerDay}px)
+        `,
+      }}
+    >
       {/* today marker */}
       {isTodayInOuter && (
         <div className="absolute top-0 bottom-0 w-px bg-blue-600" style={{ left: todayX, zIndex: 0 }} />
