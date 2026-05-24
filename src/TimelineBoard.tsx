@@ -65,7 +65,7 @@ function Row({ task, onDoubleClick }: { task: TimelineTask; onDoubleClick?: () =
   }
 
   return (
-    <div ref={sortable.setNodeRef} style={style} {...sortable.attributes} className="relative h-10">
+    <div ref={sortable.setNodeRef} style={style} {...sortable.attributes} className="relative h-10" role="listitem">
       <div
         {...sortable.listeners}
         onDoubleClick={handleDoubleClick}
@@ -203,10 +203,10 @@ const TimelineHeader = React.forwardRef<
       {/* Months row */}
       <div className="h-7 flex items-center text-xs text-gray-700">
         <div className="w-64 shrink-0 px-2 flex items-center justify-between sticky left-0 bg-white z-30 border-r border-gray-200 h-full">
-          <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+          <button aria-label="Add task" className="p-1 hover:bg-gray-100 rounded transition-colors">
             <Plus size={16} className="text-gray-600" />
           </button>
-          <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+          <button aria-label="Collapse sidebar" className="p-1 hover:bg-gray-100 rounded transition-colors">
             <ChevronLeft size={16} className="text-gray-600" />
           </button>
         </div>
@@ -364,6 +364,8 @@ export function TimelineBoard({
               <div
                 className="sticky left-0 w-64 shrink-0 border-r border-gray-200 bg-white z-10"
                 style={{ height: tasks.length * ROW_HEIGHT }}
+                role="list"
+                aria-label="Task list"
               >
                 <SortableCtx items={tasksIds}>
                   {tasks.map((t) => (
@@ -383,6 +385,8 @@ export function TimelineBoard({
               <div
                 className="relative cursor-grab flex-1"
                 style={{ width: totalPx, height: Math.max(tasks.length * ROW_HEIGHT, viewportH) }}
+                role="grid"
+                aria-label="Timeline grid"
                 onPointerDown={(e) => {
                   // Begin horizontal panning on left mouse or touch
                   if (e.button !== 0 && e.pointerType !== 'touch') return
