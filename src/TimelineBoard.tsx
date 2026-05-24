@@ -325,6 +325,7 @@ export function TimelineBoard({
   const scrollToTask = (taskId: string) => {
     const task = tasks.find((t) => String(t.id) === taskId)
     if (!task) return
+    const rowIndex = tasks.findIndex((t) => String(t.id) === taskId)
     const scroller = scrollerRef.current
     if (!scroller) return
 
@@ -333,7 +334,8 @@ export function TimelineBoard({
 
     const startOffset = Math.max(0, differenceInCalendarDays(start, viewport.start)) * pxPerDay
     const targetScrollLeft = startOffset - (scroller.clientWidth - 256) / 2
-    scroller.scrollTo({ left: targetScrollLeft, behavior: 'smooth' })
+    const targetScrollTop = 52 + rowIndex * 40 - scroller.clientHeight / 2 + 20
+    scroller.scrollTo({ left: targetScrollLeft, top: targetScrollTop, behavior: 'smooth' })
   }
 
   return (
@@ -420,12 +422,15 @@ export function TimelineBoard({
                 <BarsLayer
                   tasks={tasks}
                   viewport={viewport}
-                  onBarDoubleClick={(_taskId, barLeftPx) => {
+                  onBarDoubleClick={(taskId, barLeftPx) => {
                     const scroller = scrollerRef.current
                     if (!scroller) return
-                    // Center the bar in the viewport horizontally
+                    const rowIndex = tasks.findIndex((t) => String(t.id) === taskId)
+                    if (rowIndex === -1) return
+                    // Center the bar in the viewport horizontally and vertically
                     const targetScrollLeft = barLeftPx - (scroller.clientWidth - 256) / 2
-                    scroller.scrollTo({ left: targetScrollLeft, behavior: 'smooth' })
+                    const targetScrollTop = 52 + rowIndex * 40 - scroller.clientHeight / 2 + 20
+                    scroller.scrollTo({ left: targetScrollLeft, top: targetScrollTop, behavior: 'smooth' })
                   }}
                 />
               </div>
