@@ -416,6 +416,15 @@ export function TimelineBoard({
                 onPointerDown={(e) => {
                   // Begin horizontal panning on left mouse or touch
                   if (e.button !== 0 && e.pointerType !== 'touch') return
+                  const target = e.target as HTMLElement
+                  if (
+                    target.closest('button') ||
+                    target.closest('a') ||
+                    target.closest('input') ||
+                    target.closest('.cursor-pointer')
+                  ) {
+                    return
+                  }
                   const scroller = (scrollerRef.current as HTMLElement) || null
                   if (!scroller) return
                   e.preventDefault()
