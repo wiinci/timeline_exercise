@@ -167,9 +167,8 @@ const TimelineHeader = React.forwardRef<
   HTMLDivElement,
   {
     viewport: TimelineViewport
-    scrollLeft?: number
   }
->(({ viewport, scrollLeft = 0 }, ref) => {
+>(({ viewport }, ref) => {
   const pxPerDay = viewport.pxPerDay ?? 16
   const daysTotal = Math.max(1, differenceInCalendarDays(viewport.end, viewport.start) + 1)
   const totalPx = daysTotal * pxPerDay
@@ -194,9 +193,10 @@ const TimelineHeader = React.forwardRef<
   const todayX = todayIndex * pxPerDay + Math.floor(pxPerDay / 2)
 
   return (
-    <div ref={ref} className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-gray-200">
+    <div ref={ref} className="sticky top-0 z-20 bg-white border-b border-gray-200 select-none">
+      {/* Months row */}
       <div className="h-7 flex items-center text-xs text-gray-700">
-        <div className="w-64 shrink-0 px-2 flex items-center justify-between">
+        <div className="w-64 shrink-0 px-2 flex items-center justify-between sticky left-0 bg-white z-30 border-r border-gray-200 h-full">
           <button className="p-1 hover:bg-gray-100 rounded transition-colors">
             <Plus size={16} className="text-gray-600" />
           </button>
@@ -204,61 +204,54 @@ const TimelineHeader = React.forwardRef<
             <ChevronLeft size={16} className="text-gray-600" />
           </button>
         </div>
-        <div className="flex-1 overflow-hidden">
-          <div className="relative overflow-hidden pr-6">
-            <div style={{ transform: `translateX(-${scrollLeft}px)` }}>
+        <div className="relative">
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: months.map((m) => `${m.span * pxPerDay}px`).join(' ') }}
+          >
+            {months.map((m, i) => (
               <div
-                className="grid"
-                style={{ gridTemplateColumns: months.map((m) => `${m.span * pxPerDay}px`).join(' ') }}
+                key={i}
+                className="h-7 flex items-center border-l border-gray-200 px-2 font-medium text-left whitespace-nowrap overflow-hidden"
               >
-                {months.map((m, i) => (
-                  <div
-                    key={i}
-                    className="h-7 flex items-center border-l border-gray-200 px-2 font-medium text-left whitespace-nowrap overflow-hidden"
-                  >
-                    <span className="truncate">{m.label}</span>
-                  </div>
-                ))}
+                <span className="truncate">{m.label}</span>
               </div>
-              {isTodayInOuter && <div className="absolute top-0 bottom-0 w-px bg-blue-600" style={{ left: todayX }} />}
-            </div>
+            ))}
           </div>
+          {isTodayInOuter && <div className="absolute top-0 bottom-0 w-px bg-blue-600" style={{ left: todayX }} />}
         </div>
       </div>
-      <div className="h-6 flex items-center text-[11px] text-gray-500">
-        <div className="w-64 shrink-0 px-2" />
-        <div className="flex-1 overflow-hidden">
-          <div className="relative overflow-visible">
-            <div style={{ transform: `translateX(-${scrollLeft}px)` }}>
-              <div className="grid" style={{ gridTemplateColumns: `repeat(${daysTotal}, ${pxPerDay}px)` }}>
-                {Array.from({ length: daysTotal }).map((_, i) => (
-                  <div key={i} className="h-6 flex items-center justify-center border-l border-gray-100">
-                    {i % 7 === 0 ? format(addDays(viewport.start, i), 'd') : ''}
-                  </div>
-                ))}
+      {/* Days row */}
+      <div className="h-6 flex items-center text-[11px] text-gray-500 border-t border-gray-100">
+        <div className="w-64 shrink-0 px-2 sticky left-0 bg-white z-30 border-r border-gray-200 h-full" />
+        <div className="relative">
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${daysTotal}, ${pxPerDay}px)` }}>
+            {Array.from({ length: daysTotal }).map((_, i) => (
+              <div key={i} className="h-6 flex items-center justify-center border-l border-gray-100">
+                {i % 7 === 0 ? format(addDays(viewport.start, i), 'd') : ''}
               </div>
-              {isTodayInOuter && <div className="absolute top-0 bottom-0 w-px bg-blue-600" style={{ left: todayX }} />}
-              {isTodayInOuter && (
-                <>
-                  <div
-                    className="absolute -translate-x-1/2 -translate-y-1/2"
-                    style={{ left: todayX, top: '50%', zIndex: 2 }}
-                    aria-label="Today"
-                  >
-                    <div className="px-2 h-5 rounded-lg bg-blue-600 text-white text-[11px] leading-5 font-medium shadow-sm inline-flex items-center justify-center">
-                      {format(clampedToday, 'd')}
-                    </div>
-                  </div>
-                  <div
-                    className="absolute -translate-x-1/2"
-                    style={{ left: todayX, top: 'calc(50% + 12px)', zIndex: 2 }}
-                  >
-                    <div className="rounded-full bg-blue-600" style={{ width: 6, height: 6 }} />
-                  </div>
-                </>
-              )}
-            </div>
+            ))}
           </div>
+          {isTodayInOuter && <div className="absolute top-0 bottom-0 w-px bg-blue-600" style={{ left: todayX }} />}
+          {isTodayInOuter && (
+            <>
+              <div
+                className="absolute -translate-x-1/2 -translate-y-1/2"
+                style={{ left: todayX, top: '50%', zIndex: 2 }}
+                aria-label="Today"
+              >
+                <div className="px-2 h-5 rounded-lg bg-blue-600 text-white text-[11px] leading-5 font-medium shadow-sm inline-flex items-center justify-center">
+                  {format(clampedToday, 'd')}
+                </div>
+              </div>
+              <div
+                className="absolute -translate-x-1/2"
+                style={{ left: todayX, top: 'calc(50% + 12px)', zIndex: 2 }}
+              >
+                <div className="rounded-full bg-blue-600" style={{ width: 6, height: 6 }} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -284,15 +277,11 @@ export function TimelineBoard({
   }, [activeRow])
 
   // Measure viewport height to extend today marker fully even with few rows
-  const rightPaneRef = useRef<HTMLDivElement | null>(null)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
-  const leftScrollerRef = useRef<HTMLDivElement | null>(null)
   const headerRef = useRef<HTMLDivElement | null>(null)
-  const syncingRef = useRef(false)
   const [viewportH, setViewportH] = useState(0)
-  const [scrollLeft, setScrollLeft] = useState(0)
   useEffect(() => {
-    const el = rightPaneRef.current
+    const el = scrollerRef.current
     if (!el) return
     const update = () => setViewportH(el.clientHeight || 0)
     update()
@@ -343,37 +332,31 @@ export function TimelineBoard({
     if (!start) return
 
     const startOffset = Math.max(0, differenceInCalendarDays(start, viewport.start)) * pxPerDay
-    const targetScrollLeft = startOffset - scroller.clientWidth / 2
+    const targetScrollLeft = startOffset - (scroller.clientWidth - 256) / 2
     scroller.scrollTo({ left: targetScrollLeft, behavior: 'smooth' })
   }
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div className="h-full flex flex-col">
-        <TimelineHeader
-          ref={headerRef}
-          viewport={viewport}
-          scrollLeft={scrollLeft}
-        />
-        <div className="flex-1 min-h-0 flex">
-          {/* Left list */}
-          <div className="w-64 shrink-0 border-r border-gray-200">
-            <div
-              className="h-full overflow-auto"
-              ref={leftScrollerRef as any}
-              onScroll={(e) => {
-                if (syncingRef.current) return
-                const left = e.currentTarget
-                const right = scrollerRef.current
-                if (!right) return
-                syncingRef.current = true
-                right.scrollTop = left.scrollTop
-                requestAnimationFrame(() => {
-                  syncingRef.current = false
-                })
-              }}
-            >
-              <div className="relative" style={{ height: tasks.length * 40 }}>
+        <div
+          className="flex-1 overflow-auto relative"
+          ref={scrollerRef as any}
+        >
+          <div
+            style={{ width: totalPx + 256, minHeight: '100%' }}
+            className="flex flex-col relative"
+          >
+            <TimelineHeader
+              ref={headerRef}
+              viewport={viewport}
+            />
+            <div className="flex-1 relative flex">
+              {/* Left list - sticky to left */}
+              <div
+                className="sticky left-0 w-64 shrink-0 border-r border-gray-200 bg-white z-10"
+                style={{ height: tasks.length * 40 }}
+              >
                 <SortableCtx items={tasksIds as any}>
                   {tasks.map((t) => (
                     <Row
@@ -387,31 +370,10 @@ export function TimelineBoard({
                   ))}
                 </SortableCtx>
               </div>
-            </div>
-          </div>
-          {/* Right timeline grid */}
-          <div className="flex-1 overflow-auto relative" ref={rightPaneRef as any}>
-            <div
-              className="h-full overflow-auto"
-              ref={scrollerRef as any}
-              onScroll={(e) => {
-                const scroller = e.currentTarget
 
-                setScrollLeft(scroller.scrollLeft)
-
-                // vertical sync to left
-                const left = leftScrollerRef.current
-                if (!syncingRef.current && left) {
-                  syncingRef.current = true
-                  left.scrollTop = scroller.scrollTop
-                  requestAnimationFrame(() => {
-                    syncingRef.current = false
-                  })
-                }
-              }}
-            >
+              {/* Right timeline grid */}
               <div
-                className="relative min-h-full cursor-grab"
+                className="relative cursor-grab flex-1"
                 style={{ width: totalPx, height: Math.max(tasks.length * 40, viewportH) }}
                 onPointerDown={(e) => {
                   // Begin horizontal panning on left mouse or touch
@@ -461,8 +423,8 @@ export function TimelineBoard({
                   onBarDoubleClick={(taskId, barLeftPx) => {
                     const scroller = scrollerRef.current
                     if (!scroller) return
-                    // Center the bar in the viewport
-                    const targetScrollLeft = barLeftPx - scroller.clientWidth / 2
+                    // Center the bar in the viewport horizontally
+                    const targetScrollLeft = barLeftPx - (scroller.clientWidth - 256) / 2
                     scroller.scrollTo({ left: targetScrollLeft, behavior: 'smooth' })
                   }}
                 />
