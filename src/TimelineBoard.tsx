@@ -23,6 +23,7 @@ import {
 	BAR_VERTICAL_PADDING,
 	HEADER_DAYS_HEIGHT,
 	HEADER_MONTHS_HEIGHT,
+	HEADER_HEIGHT,
 	ROW_HEIGHT,
 	SIDEBAR_WIDTH,
 	getTaskGeometry,
@@ -59,57 +60,65 @@ export interface TimelineBoardProps {
 
 function Row({
 	task,
-	onDoubleClick,
+	onActivate,
 }: {
 	task: TimelineTask
-	onDoubleClick?: () => void
+	onActivate?: () => void
 }) {
 	const sortable = useSortable({
 		id: task.id,
 		data: {type: 'Row', task},
-		attributes: {roleDescription: 'Row'},
 	})
 	const transform = CSS.Transform.toString(sortable.transform)
 	const style: React.CSSProperties = {
 		transform,
 		transition: sortable.transition,
-		height: ROW_HEIGHT,
 	}
 
-	const handleDoubleClick = (e: React.MouseEvent) => {
+	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
 		e.stopPropagation()
-		onDoubleClick?.()
+		onActivate?.()
 	}
 
 	return (
-		<div
+		<li
 			ref={sortable.setNodeRef}
 			style={style}
-			{...sortable.attributes}
-			className="relative"
-			role="listitem"
+			className="relative list-none"
 		>
-			<div
+			<button
+				type="button"
+				{...sortable.attributes}
 				{...sortable.listeners}
-				onDoubleClick={handleDoubleClick}
-				className="absolute inset-0 flex items-center px-2 cursor-pointer"
+				onClick={handleClick}
+				style={{lineHeight: `${ROW_HEIGHT}px`}}
+				className="w-full px-2 text-left"
 			>
 				<span className="text-sm text-gray-800 truncate">
 					{task.title || 'Untitled'}
 				</span>
-			</div>
-		</div>
+			</button>
+		</li>
 	)
+}
+
+function getTaskButtonLabel(task: TimelineTask, start: Date, end: Date) {
+	const title = task.title || 'Untitled'
+	if (format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
+		return `${title}, ${format(start, 'MMMM d, yyyy')}`
+	}
+
+	return `${title}, ${format(start, 'MMMM d, yyyy')} to ${format(end, 'MMMM d, yyyy')}`
 }
 
 function BarsLayer({
 	tasks,
 	viewport,
-	onBarDoubleClick,
+	onBarActivate,
 }: {
 	tasks: TimelineTask[]
 	viewport: TimelineViewport
-	onBarDoubleClick?: (taskId: string) => void
+	onBarActivate?: (taskId: string) => void
 }) {
 	const days = getViewportDays(viewport)
 	const pxPerDay = viewport.pxPerDay ?? 16
@@ -141,6 +150,11 @@ function BarsLayer({
 				{tasks.map((t, rowIndex) => {
 					const geometry = getTaskGeometry(t, viewport, pxPerDay)
 					if (!geometry) return null
+					const buttonLabel = getTaskButtonLabel(
+						t,
+						geometry.start,
+						geometry.end,
+					)
 
 					// For single-day events, show as a point-in-time marker with diamond
 					if (geometry.isSingleDay) {
@@ -153,24 +167,31 @@ function BarsLayer({
 									left: geometry.left,
 								}}
 							>
-								<div
-									className="max-w-96 pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 inline-flex justify-start items-center gap-1.5 overflow-hidden cursor-pointer"
-									onDoubleClick={() => onBarDoubleClick?.(String(t.id))}
+								<button
+									type="button"
+									aria-label={buttonLabel}
+									className="max-w-96 pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 inline-flex justify-start items-center gap-1.5 overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+									onClick={() => onBarActivate?.(String(t.id))}
 								>
-									<div className="flex-1 pl-0.5 pr-1 py-0.5 rounded-md flex justify-start items-center gap-1.5">
-										<div className="flex justify-start items-center gap-1">
-											{/* Diamond marker to indicate point in time */}
-											<div className="w-2 h-2 bg-gray-600 rotate-45 flex-shrink-0" />
+									<span className="flex-1 pl-0.5 pr-1 py-0.5 rounded-md inline-flex justify-start items-center gap-1.5">
+										<span className="inline-flex justify-start items-center gap-1 min-w-0">
+											<span
+												className="w-2 h-2 bg-gray-600 rotate-45 shrink-0"
+												aria-hidden="true"
+											/>
 											<span className="text-sm font-semibold text-gray-700">
 												{format(geometry.start, 'MMM d')}
 											</span>
-											<span className="w-px h-3 bg-gray-300" />
-											<div className="justify-start text-gray-800 text-sm leading-tight">
+											<span
+												className="w-px h-3 bg-gray-300 shrink-0"
+												aria-hidden="true"
+											/>
+											<span className="text-gray-800 text-sm leading-tight truncate">
 												{t.title || 'Untitled'}
-											</div>
-										</div>
-									</div>
-								</div>
+											</span>
+										</span>
+									</span>
+								</button>
 							</div>
 						)
 					}
@@ -185,16 +206,18 @@ function BarsLayer({
 								width: geometry.width,
 							}}
 						>
-							<div
-								className="w-full pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 flex justify-start items-center gap-1.5 overflow-hidden cursor-pointer"
-								onDoubleClick={() => onBarDoubleClick?.(String(t.id))}
+							<button
+								type="button"
+								aria-label={buttonLabel}
+								className="w-full pl-0.5 pr-1.5 py-0.5 bg-white rounded-md shadow-sm border border-gray-200 flex justify-start items-center gap-1.5 overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+								onClick={() => onBarActivate?.(String(t.id))}
 							>
-								<div className="flex-1 pl-0.5 pr-1 py-0.5 rounded-md flex justify-start items-center gap-1.5 min-w-0">
-									<div className="text-gray-800 text-sm leading-tight truncate">
-										{t.title || ''}
-									</div>
-								</div>
-							</div>
+								<span className="flex-1 pl-0.5 pr-1 py-0.5 rounded-md inline-flex justify-start items-center gap-1.5 min-w-0">
+									<span className="text-gray-800 text-sm leading-tight truncate">
+										{t.title || 'Untitled'}
+									</span>
+								</span>
+							</button>
 						</div>
 					)
 				})}
@@ -203,7 +226,50 @@ function BarsLayer({
 	)
 }
 
-function TimelineHeader({viewport}: {viewport: TimelineViewport}) {
+function TimelineSidebarHeader() {
+	return (
+		<div
+			className="shrink-0 sticky left-0 bg-white z-30 border-r border-gray-200"
+			style={{width: SIDEBAR_WIDTH, height: HEADER_HEIGHT}}
+		>
+			<div
+				className="px-2 flex items-center justify-between"
+				style={{height: HEADER_MONTHS_HEIGHT}}
+			>
+				<button
+					type="button"
+					disabled
+					className="p-1 rounded text-gray-400 cursor-not-allowed disabled:opacity-100"
+				>
+					<Plus
+						size={16}
+						className="text-gray-600"
+						aria-hidden="true"
+					/>
+					<span className="sr-only">Add task</span>
+				</button>
+				<button
+					type="button"
+					disabled
+					className="p-1 rounded text-gray-400 cursor-not-allowed disabled:opacity-100"
+				>
+					<ChevronLeft
+						size={16}
+						className="text-gray-600"
+						aria-hidden="true"
+					/>
+					<span className="sr-only">Collapse sidebar</span>
+				</button>
+			</div>
+			<div
+				className="border-t border-gray-100"
+				style={{height: HEADER_DAYS_HEIGHT}}
+			/>
+		</div>
+	)
+}
+
+function TimelineHeaderTimeline({viewport}: {viewport: TimelineViewport}) {
 	const pxPerDay = viewport.pxPerDay ?? 16
 	const daysTotal = getViewportDays(viewport)
 
@@ -224,35 +290,14 @@ function TimelineHeader({viewport}: {viewport: TimelineViewport}) {
 	)
 
 	return (
-		<div className="sticky top-0 z-20 bg-white border-b border-gray-200 select-none">
-			{/* Months row */}
+		<div
+			className="bg-white select-none"
+			style={{width: daysTotal * pxPerDay}}
+		>
 			<div
 				className="flex items-center text-xs text-gray-700"
 				style={{height: HEADER_MONTHS_HEIGHT}}
 			>
-				<div
-					className="shrink-0 px-2 flex items-center justify-between sticky left-0 bg-white z-30 border-r border-gray-200"
-					style={{width: SIDEBAR_WIDTH, height: HEADER_MONTHS_HEIGHT}}
-				>
-					<button
-						aria-label="Add task"
-						className="p-1 hover:bg-gray-100 rounded transition-colors"
-					>
-						<Plus
-							size={16}
-							className="text-gray-600"
-						/>
-					</button>
-					<button
-						aria-label="Collapse sidebar"
-						className="p-1 hover:bg-gray-100 rounded transition-colors"
-					>
-						<ChevronLeft
-							size={16}
-							className="text-gray-600"
-						/>
-					</button>
-				</div>
 				<div className="relative">
 					<div
 						className="grid"
@@ -280,15 +325,10 @@ function TimelineHeader({viewport}: {viewport: TimelineViewport}) {
 					)}
 				</div>
 			</div>
-			{/* Days row */}
 			<div
 				className="flex items-center text-[11px] text-gray-500 border-t border-gray-100"
 				style={{height: HEADER_DAYS_HEIGHT}}
 			>
-				<div
-					className="shrink-0 px-2 sticky left-0 bg-white z-30 border-r border-gray-200"
-					style={{width: SIDEBAR_WIDTH, height: HEADER_DAYS_HEIGHT}}
-				/>
 				<div
 					className="relative"
 					style={{width: daysTotal * pxPerDay, height: HEADER_DAYS_HEIGHT}}
@@ -339,15 +379,21 @@ function TimelineHeader({viewport}: {viewport: TimelineViewport}) {
 							<div
 								className="absolute -translate-x-1/2 -translate-y-1/2"
 								style={{left: todayX, top: '50%'}}
-								aria-label="Today"
 							>
-								<div className="px-2 h-5 rounded-lg bg-blue-600 text-white text-[11px] leading-5 font-medium shadow-sm inline-flex items-center justify-center">
-									{format(clampedToday, 'd')}
-								</div>
+								<time
+									dateTime={format(clampedToday, 'yyyy-MM-dd')}
+									className="px-2 h-5 rounded-lg bg-blue-600 text-white text-[11px] leading-5 font-medium shadow-sm inline-flex items-center justify-center"
+								>
+									<span aria-hidden="true">{format(clampedToday, 'd')}</span>
+									<span className="sr-only">
+										Today, {format(clampedToday, 'MMMM d, yyyy')}
+									</span>
+								</time>
 							</div>
 							<div
 								className="absolute -translate-x-1/2"
 								style={{left: todayX}}
+								aria-hidden="true"
 							>
 								<div
 									className="rounded-full bg-blue-600"
@@ -377,12 +423,15 @@ export function TimelineBoard({
 	const [activeRow, setActiveRow] = useState<TimelineTask | null>(null)
 
 	// Measure viewport height to extend today marker fully even with few rows
-	const scrollerRef = useRef<HTMLDivElement | null>(null)
-	const [viewportH, setViewportH] = useState(0)
+	const verticalScrollerRef = useRef<HTMLDivElement | null>(null)
+	const horizontalScrollerRef = useRef<HTMLDivElement | null>(null)
+	const headerTimelineRef = useRef<HTMLDivElement | null>(null)
+	const [bodyViewportH, setBodyViewportH] = useState(0)
 	useEffect(() => {
-		const el = scrollerRef.current
+		const el = verticalScrollerRef.current
 		if (!el) return
-		const update = () => setViewportH(el.clientHeight || 0)
+		const update = () =>
+			setBodyViewportH(Math.max(0, (el.clientHeight || 0) - HEADER_HEIGHT))
 		update()
 		const ro = new ResizeObserver(update)
 		ro.observe(el)
@@ -420,7 +469,7 @@ export function TimelineBoard({
 	const pxPerDay = viewport.pxPerDay ?? 16
 	const totalPx = days * pxPerDay
 	const {isPanning, onPointerDown} = useHorizontalPan({
-		scrollerRef,
+		scrollerRef: horizontalScrollerRef,
 		shouldIgnoreTarget: target =>
 			Boolean(
 				target.closest('button') ||
@@ -434,8 +483,9 @@ export function TimelineBoard({
 		const task = tasks.find(t => String(t.id) === taskId)
 		if (!task) return
 		const rowIndex = tasks.findIndex(t => String(t.id) === taskId)
-		const scroller = scrollerRef.current
-		if (!scroller) return
+		const verticalScroller = verticalScrollerRef.current
+		const horizontalScroller = horizontalScrollerRef.current
+		if (!verticalScroller || !horizontalScroller) return
 
 		const geometry = getTaskGeometry(task, viewport, pxPerDay)
 		if (!geometry || rowIndex === -1) return
@@ -443,11 +493,14 @@ export function TimelineBoard({
 		const target = getTaskScrollTarget({
 			rowIndex,
 			geometry,
-			scrollerWidth: scroller.clientWidth,
-			scrollerHeight: scroller.clientHeight,
+			scrollerWidth: horizontalScroller.clientWidth,
+			scrollerHeight: verticalScroller.clientHeight,
 		})
-		scroller.scrollTo({
-			left: target.left,
+		horizontalScroller.scrollTo({
+			left: geometry.centerX - horizontalScroller.clientWidth / 2,
+			behavior: 'smooth',
+		})
+		verticalScroller.scrollTo({
 			top: target.top,
 			behavior: 'smooth',
 		})
@@ -461,53 +514,65 @@ export function TimelineBoard({
 		>
 			<div className="h-full flex flex-col">
 				<div
-					className="flex-1 overflow-auto relative"
-					ref={scrollerRef}
+					className="flex-1 overflow-y-auto overflow-x-hidden relative"
+					ref={verticalScrollerRef}
 				>
-					<div
-						style={{width: totalPx + SIDEBAR_WIDTH, minHeight: '100%'}}
-						className="flex flex-col relative"
-					>
-						<TimelineHeader viewport={viewport} />
-						<div className="flex-1 relative flex">
+					<div className="flex flex-col relative min-h-full">
+						<div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+							<div className="flex">
+								<TimelineSidebarHeader />
+								<div
+									ref={headerTimelineRef}
+									className="flex-1 overflow-hidden"
+								>
+									<TimelineHeaderTimeline viewport={viewport} />
+								</div>
+							</div>
+						</div>
+						<div className="flex flex-1">
 							{/* Left list - sticky to left */}
-							<div
-								className="sticky left-0 shrink-0 border-r border-gray-200 bg-white z-20"
+							<ul
+								className="shrink-0 border-r border-gray-200 bg-white z-20 m-0 p-0"
 								style={{width: SIDEBAR_WIDTH}}
-								role="list"
-								aria-label="Task list"
 							>
 								<SortableCtx items={tasksIds}>
 									{tasks.map(t => (
 										<Row
 											key={String(t.id)}
 											task={t}
-											onDoubleClick={() => {
+											onActivate={() => {
 												scrollToTask(String(t.id))
 												onRowDoubleClick?.(String(t.id))
 											}}
 										/>
 									))}
 								</SortableCtx>
-							</div>
+							</ul>
 
-							{/* Right timeline grid */}
 							<div
-								className={`relative flex-1 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
-								style={{
-									touchAction: 'pan-y',
-									width: totalPx,
-									height: Math.max(tasks.length * ROW_HEIGHT, viewportH),
-								}}
-								role="grid"
-								aria-label="Timeline grid"
+								ref={horizontalScrollerRef}
+								className={`relative flex-1 overflow-x-auto overflow-y-hidden ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+								style={{touchAction: 'pan-y'}}
 								onPointerDown={onPointerDown}
+								onScroll={event => {
+									if (!headerTimelineRef.current) return
+									headerTimelineRef.current.scrollLeft =
+										event.currentTarget.scrollLeft
+								}}
 							>
-								<BarsLayer
-									tasks={tasks}
-									viewport={viewport}
-									onBarDoubleClick={scrollToTask}
-								/>
+								<div
+									className="relative"
+									style={{
+										width: totalPx,
+										height: Math.max(tasks.length * ROW_HEIGHT, bodyViewportH),
+									}}
+								>
+									<BarsLayer
+										tasks={tasks}
+										viewport={viewport}
+										onBarActivate={scrollToTask}
+									/>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -517,7 +582,10 @@ export function TimelineBoard({
 			{typeof document !== 'undefined' && (
 				<DragOL>
 					{activeRow && (
-						<div className="pointer-events-none">
+						<div
+							className="pointer-events-none"
+							aria-hidden="true"
+						>
 							<div
 								className="flex items-center px-2 rounded bg-white shadow-sm border"
 								style={{height: ROW_HEIGHT}}
