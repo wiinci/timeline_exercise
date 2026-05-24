@@ -51,7 +51,7 @@ function clampDate(d: Date, start: Date, end: Date) {
 function Row({ task, onDoubleClick }: { task: TimelineTask; onDoubleClick?: () => void }) {
   const sortable = useSortable({ id: task.id, data: { type: 'Row', task }, attributes: { roleDescription: 'Row' } })
   const transform = CSS.Transform.toString(sortable.transform)
-  const style = { transform, transition: sortable.transition }
+  const style: React.CSSProperties = { transform, transition: sortable.transition }
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -59,7 +59,7 @@ function Row({ task, onDoubleClick }: { task: TimelineTask; onDoubleClick?: () =
   }
 
   return (
-    <div ref={sortable.setNodeRef} style={style as any} {...sortable.attributes} className="relative h-10">
+    <div ref={sortable.setNodeRef} style={style} {...sortable.attributes} className="relative h-10">
       <div
         {...sortable.listeners}
         onDoubleClick={handleDoubleClick}
@@ -343,7 +343,7 @@ export function TimelineBoard({
       <div className="h-full flex flex-col">
         <div
           className="flex-1 overflow-auto relative"
-          ref={scrollerRef as any}
+          ref={scrollerRef}
         >
           <div
             style={{ width: totalPx + 256, minHeight: '100%' }}
@@ -359,7 +359,7 @@ export function TimelineBoard({
                 className="sticky left-0 w-64 shrink-0 border-r border-gray-200 bg-white z-10"
                 style={{ height: tasks.length * 40 }}
               >
-                <SortableCtx items={tasksIds as any}>
+                <SortableCtx items={tasksIds}>
                   {tasks.map((t) => (
                     <Row
                       key={String(t.id)}
