@@ -30,6 +30,7 @@ import {
 	getTodayMarker,
 	getViewportDays,
 } from './timelineMath'
+import {useHorizontalPan} from './useHorizontalPan'
 
 // dnd-kit JSX typing workaround for React 19
 const SortableCtx = SortableContextBase as unknown as React.FC<any>
@@ -417,6 +418,16 @@ export function TimelineBoard({
 	const days = getViewportDays(viewport)
 	const pxPerDay = viewport.pxPerDay ?? 16
 	const totalPx = days * pxPerDay
+	const {isPanning, onPointerDown} = useHorizontalPan({
+		scrollerRef,
+		shouldIgnoreTarget: target =>
+			Boolean(
+				target.closest('button') ||
+					target.closest('a') ||
+					target.closest('input') ||
+					target.closest('.cursor-pointer'),
+			),
+	})
 
 	const scrollToTask = (taskId: string) => {
 		const task = tasks.find(t => String(t.id) === taskId)
@@ -481,56 +492,15 @@ export function TimelineBoard({
 
 							{/* Right timeline grid */}
 							<div
-								className="relative cursor-grab flex-1"
+								className={`relative flex-1 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
 								style={{
+									touchAction: 'pan-y',
 									width: totalPx,
 									height: Math.max(tasks.length * ROW_HEIGHT, viewportH),
 								}}
 								role="grid"
 								aria-label="Timeline grid"
-								onPointerDown={e => {
-									// Begin horizontal panning on left mouse or touch
-									if (e.button !== 0 && e.pointerType !== 'touch') return
-									const target = e.target as HTMLElement
-									if (
-										target.closest('button') ||
-										target.closest('a') ||
-										target.closest('input') ||
-										target.closest('.cursor-pointer')
-									) {
-										return
-									}
-									const scroller = (scrollerRef.current as HTMLElement) || null
-									if (!scroller) return
-									e.preventDefault()
-									try {
-										;(
-											e.currentTarget as unknown as Element
-										).setPointerCapture?.(e.pointerId)
-									} catch {}
-									const startX = e.clientX
-									const startScrollLeft = scroller.scrollLeft
-									let panning = true
-									// Update cursor
-									const el = e.currentTarget as HTMLElement
-									const prevCursor = el.style.cursor
-									el.style.cursor = 'grabbing'
-									const onMove = (ev: PointerEvent) => {
-										if (!panning) return
-										const dx = ev.clientX - startX
-										scroller.scrollLeft = startScrollLeft - dx
-									}
-									const onUp = () => {
-										panning = false
-										el.style.cursor = prevCursor
-										window.removeEventListener('pointermove', onMove)
-										window.removeEventListener('pointerup', onUp)
-										window.removeEventListener('pointercancel', onUp)
-									}
-									window.addEventListener('pointermove', onMove)
-									window.addEventListener('pointerup', onUp)
-									window.addEventListener('pointercancel', onUp)
-								}}
+								onPointerDown={onPointerDown}
 							>
 								<BarsLayer
 									tasks={tasks}
