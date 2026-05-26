@@ -18,7 +18,7 @@ import {
 import {CSS} from '@dnd-kit/utilities'
 import {addDays, differenceInCalendarDays, format, isAfter} from 'date-fns'
 import {ChevronLeft, Plus} from 'lucide-react'
-import React, {useEffect, useMemo, useRef, useState} from 'react'
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {
 	BAR_VERTICAL_PADDING,
 	HEADER_DAYS_HEIGHT,
@@ -34,8 +34,12 @@ import {
 import {useHorizontalPan} from './useHorizontalPan'
 
 // dnd-kit JSX typing workaround for React 19
-const SortableCtx = SortableContextBase as unknown as React.FC<any>
-const DragOL = DragOverlayBase as unknown as React.FC<any>
+type SortableCtxProps = React.ComponentProps<typeof SortableContextBase>
+type DragOverlayProps = React.ComponentProps<typeof DragOverlayBase>
+const SortableCtx =
+	SortableContextBase as unknown as React.ComponentType<SortableCtxProps>
+const DragOL =
+	DragOverlayBase as unknown as React.ComponentType<DragOverlayProps>
 
 export interface TimelineTask {
 	id: UniqueIdentifier
@@ -58,13 +62,12 @@ export interface TimelineBoardProps {
 	onRowDoubleClick?: (taskId: string) => void
 }
 
-function Row({
-	task,
-	onActivate,
-}: {
+interface RowProps {
 	task: TimelineTask
-	onActivate?: () => void
-}) {
+	onActivateTask?: (taskId: string) => void
+}
+
+const Row = React.memo(function Row({task, onActivateTask}: RowProps) {
 	const sortable = useSortable({
 		id: task.id,
 		data: {type: 'Row', task},
@@ -77,7 +80,7 @@ function Row({
 
 	const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
 		e.stopPropagation()
-		onActivate?.()
+		onActivateTask?.(String(task.id))
 	}
 
 	return (
@@ -100,7 +103,9 @@ function Row({
 			</button>
 		</li>
 	)
-}
+})
+
+Row.displayName = 'Row'
 
 function getTaskButtonLabel(task: TimelineTask, start: Date, end: Date) {
 	const title = task.title || 'Untitled'
@@ -454,13 +459,9 @@ export function TimelineBoard({
 		if (from === -1 || to === -1 || from === to) return
 		const next = arrayMove(tasks, from, to)
 		setTasks(next)
-		setTimeout(
-			() =>
-				onOrderChanged?.(
-					next.map(t => String(t.id)),
-					String(active.id),
-				),
-			0,
+		onOrderChanged?.(
+			next.map(t => String(t.id)),
+			String(active.id),
 		)
 	}
 
@@ -475,36 +476,49 @@ export function TimelineBoard({
 				target.closest('button') ||
 				target.closest('a') ||
 				target.closest('input') ||
-				target.closest('.cursor-pointer'),
+				target.closest('select') ||
+				target.closest('textarea') ||
+				target.closest('[contenteditable="true"]'),
 			),
 	})
 
-	const scrollToTask = (taskId: string) => {
-		const task = tasks.find(t => String(t.id) === taskId)
-		if (!task) return
-		const rowIndex = tasks.findIndex(t => String(t.id) === taskId)
-		const verticalScroller = verticalScrollerRef.current
-		const horizontalScroller = horizontalScrollerRef.current
-		if (!verticalScroller || !horizontalScroller) return
+	const scrollToTask = useCallback(
+		(taskId: string) => {
+			const task = tasks.find(t => String(t.id) === taskId)
+			if (!task) return
+			const rowIndex = tasks.findIndex(t => String(t.id) === taskId)
+			const verticalScroller = verticalScrollerRef.current
+			const horizontalScroller = horizontalScrollerRef.current
+			if (!verticalScroller || !horizontalScroller) return
 
-		const geometry = getTaskGeometry(task, viewport, pxPerDay)
-		if (!geometry || rowIndex === -1) return
+			const geometry = getTaskGeometry(task, viewport, pxPerDay)
+			if (!geometry || rowIndex === -1) return
 
-		const target = getTaskScrollTarget({
-			rowIndex,
-			geometry,
-			scrollerWidth: horizontalScroller.clientWidth,
-			scrollerHeight: verticalScroller.clientHeight,
-		})
-		horizontalScroller.scrollTo({
-			left: geometry.centerX - horizontalScroller.clientWidth / 2,
-			behavior: 'smooth',
-		})
-		verticalScroller.scrollTo({
-			top: target.top,
-			behavior: 'smooth',
-		})
-	}
+			const target = getTaskScrollTarget({
+				rowIndex,
+				geometry,
+				scrollerWidth: horizontalScroller.clientWidth,
+				scrollerHeight: verticalScroller.clientHeight,
+			})
+			horizontalScroller.scrollTo({
+				left: geometry.centerX - horizontalScroller.clientWidth / 2,
+				behavior: 'smooth',
+			})
+			verticalScroller.scrollTo({
+				top: target.top,
+				behavior: 'smooth',
+			})
+		},
+		[tasks, viewport, pxPerDay],
+	)
+
+	const handleActivateTask = useCallback(
+		(taskId: string) => {
+			scrollToTask(taskId)
+			onRowDoubleClick?.(taskId)
+		},
+		[onRowDoubleClick, scrollToTask],
+	)
 
 	return (
 		<DndContext
@@ -540,10 +554,7 @@ export function TimelineBoard({
 										<Row
 											key={String(t.id)}
 											task={t}
-											onActivate={() => {
-												scrollToTask(String(t.id))
-												onRowDoubleClick?.(String(t.id))
-											}}
+											onActivateTask={handleActivateTask}
 										/>
 									))}
 								</SortableCtx>

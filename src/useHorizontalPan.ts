@@ -54,7 +54,9 @@ export function useHorizontalPan({
 				moveEvent.preventDefault()
 				try {
 					panSurface.setPointerCapture?.(event.pointerId)
-				} catch {}
+				} catch {
+					// Some browsers can throw here when pointer capture is unsupported.
+				}
 			}
 
 			moveEvent.preventDefault()
